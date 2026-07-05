@@ -2,15 +2,15 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Dict, List
-import importlib
 import re
 
 from sentence_transformers import SentenceTransformer
 
 from ChromaDbOps import ingest_chunks_to_chroma
+from UniversalParser import parse_document
 
 EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
-FILE_TYPES = {".txt", ".md", ".csv", ".pdf"}
+FILE_TYPES = {".txt", ".md", ".csv", ".pdf", ".html", ".htm", ".docx"}
 CHUNK_SIZE = 256
 
 
@@ -26,33 +26,7 @@ def _split_sentences(text: str) -> List[str]:
 	return sentences
 
 
-def _read_text_file(file_path: Path) -> str:
-	"""Read a text file in UTF-8 and skip invalid bytes for simple demos."""
-	print(f"[INFO] Reading text file: {file_path.name}")
-	text = file_path.read_text(encoding="utf-8", errors="ignore")
-	print(f"[OK] Read {len(text)} characters from {file_path.name}")
-	return text
-
-
-def _read_pdf_file(file_path: Path) -> str:
-	"""Extract text from a PDF file using pypdf."""
-	print(f"[INFO] Reading PDF file: {file_path.name}")
-	try:
-		pypdf_module = importlib.import_module("pypdf")
-	except ImportError as exc:
-		raise ImportError("pypdf is required for PDF files. Install with: pip install pypdf") from exc
-
-	reader = pypdf_module.PdfReader(str(file_path))
-	print(f"[INFO] PDF page count: {len(reader.pages)}")
-	pages: List[str] = []
-	for page in reader.pages:
-		pages.append(page.extract_text() or "")
-	text = "\n".join(pages)
-	print(f"[OK] Extracted {len(text)} characters from {file_path.name}")
-	return text
-
-
-def _chunk_text(text: str, tokenizer: object, chunk_size: int = CHUNK_SIZE) -> List[str]:
+def _chunk_text(text: str, tokenizer: object, content_type: str, chunk_size: int = CHUNK_SIZE) -> List[str]:
 	"""
 	Group full sentences until token limit is reached.
 
@@ -66,7 +40,33 @@ def _chunk_text(text: str, tokenizer: object, chunk_size: int = CHUNK_SIZE) -> L
 	"""
 	if chunk_size <= 0:
 		raise ValueError("chunk_size must be > 0")
-	print(f"[INFO] Chunking text with chunk size: {chunk_size}")
+	print(f"[INFO] Chunking content type '{content_type}' with chunk size: {chunk_size}")
+
+	if content_type == "table":
+		lines = [line.strip() for line in text.splitlines() if line.strip()]
+		if not lines:
+			return []
+
+		chunks: List[str] = []
+		current_lines: List[str] = []
+		current_tokens = 0
+
+		for line in lines:
+			line_tokens = len(tokenizer.tokenize(line))
+			if current_lines and (current_tokens + line_tokens > chunk_size):
+				chunks.append("\n".join(current_lines).strip())
+				current_lines = []
+				current_tokens = 0
+
+			current_lines.append(line)
+			current_tokens += line_tokens
+
+		if current_lines:
+			chunks.append("\n".join(current_lines).strip())
+
+		result_chunks = [chunk for chunk in chunks if chunk]
+		print(f"[OK] Table chunk count generated: {len(result_chunks)}")
+		return result_chunks
 
 	sentences = _split_sentences(text)
 	chunks: List[str] = []
@@ -128,30 +128,45 @@ def load_docs_to_local_chroma(
 		processed_files += 1
 		print(f"[INFO] Processing file: {file_path.name}")
 
-		if file_path.suffix.lower() == ".pdf":
-			text = _read_pdf_file(file_path)
-		else:
-			text = _read_text_file(file_path)
-
-		if not text.strip():
-			print(f"[INFO] Skipped empty content: {file_path.name}")
+		sections = parse_document(file_path)
+		if not sections:
+			print(f"[INFO] No parseable sections found in: {file_path.name}")
 			continue
 
-		chunks = _chunk_text(text=text, tokenizer=tokenizer, chunk_size=chunk_size)
-		for chunk_index, chunk_text in enumerate(chunks):
-			chunk_documents.append(
-				{
-					"id": f"{file_path.stem}-{chunk_index}",
-					"text": chunk_text,
-					"metadata": {
-						"source": str(file_path),
-						"filename": file_path.name,
-						"chunk_index": chunk_index,
-					},
-				}
+		file_chunk_count = 0
+		for section_index, section in enumerate(sections):
+			section_text = str(section.get("text", ""))
+			content_type = str(section.get("content_type", "text"))
+			section_metadata = dict(section.get("metadata", {}))
+
+			if not section_text.strip():
+				continue
+
+			chunks = _chunk_text(
+				text=section_text,
+				tokenizer=tokenizer,
+				content_type=content_type,
+				chunk_size=chunk_size,
 			)
 
-		print(f"[OK] Created {len(chunks)} chunk(s) from {file_path.name}")
+			for chunk_index, chunk_text in enumerate(chunks):
+				chunk_documents.append(
+					{
+						"id": f"{file_path.stem}-s{section_index}-c{chunk_index}",
+						"text": chunk_text,
+						"metadata": {
+							"source": str(file_path),
+							"filename": file_path.name,
+							"content_type": content_type,
+							"section_index": section_index,
+							"chunk_index": chunk_index,
+							**section_metadata,
+						},
+					}
+				)
+				file_chunk_count += 1
+
+		print(f"[OK] Created {file_chunk_count} chunk(s) from {file_path.name}")
 
 	print(f"[OK] Processed files: {processed_files}")
 	print(f"[OK] Total chunks created: {len(chunk_documents)}")

@@ -3,3 +3,7 @@ chromadb
 openai
 requests
 pypdf
+beautifulsoup4
+lxml
+python-docx
+pdfplumber

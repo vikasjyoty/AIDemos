@@ -5,7 +5,8 @@ Hands-on AI demo projects focused on practical learning.
 This repository currently includes a Python RAG (Retrieval-Augmented Generation) demo that:
 
 1. Reads documents from a local folder
-2. Chunks text using a tokenizer-aware strategy
+2. Parses text, HTML, and tables from multiple file formats
+3. Chunks parsed content using a tokenizer-aware strategy
 3. Stores embeddings in local ChromaDB
 4. Retrieves relevant chunks for a user question
 5. Sends context to an LLM (Ollama by default)
@@ -20,18 +21,22 @@ Main files:
 
 1. `RAG-Demo/LoadDocs.py`
 	- Loads files from `RAG-Demo/Docs`
-	- Supports `.txt`, `.md`, `.csv`, `.pdf`
+	- Supports `.txt`, `.md`, `.csv`, `.pdf`, `.html`, `.htm`, `.docx`
 	- Chunks text and ingests vectors into ChromaDB
 
-2. `RAG-Demo/ChromaDbOps.py`
+2. `RAG-Demo/UniversalParser.py`
+	- Unified parser for all supported document types
+	- Extracts both normal text and table content when available
+
+3. `RAG-Demo/ChromaDbOps.py`
 	- Embedding creation
 	- ChromaDB insert and retrieval
 
-3. `RAG-Demo/LlmRag.py`
+4. `RAG-Demo/LlmRag.py`
 	- Builds RAG context
 	- Calls LLM provider (default: Ollama)
 
-4. `RAG-Demo/Main.py`
+5. `RAG-Demo/Main.py`
 	- CLI interface for asking questions
 	- Lets you choose provider and model at runtime
 
@@ -91,6 +96,7 @@ cd .\RAG-Demo
 ```
 
 1. Add your files to `RAG-Demo/Docs`
+	- Supported: txt, md, csv, pdf, html/htm, docx
 2. Ingest documents into local ChromaDB:
 
 ```powershell
