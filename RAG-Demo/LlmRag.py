@@ -15,6 +15,7 @@ DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
 
 def _build_context(chunks: List[Dict[str, object]], max_chars: int = 3500) -> str:
     """Join retrieved chunks into one context block for the LLM prompt."""
+    print(f"[INFO] Building context from {len(chunks)} retrieved chunk(s)...")
     context_parts: List[str] = []
     used_chars = 0
 
@@ -32,27 +33,60 @@ def _build_context(chunks: List[Dict[str, object]], max_chars: int = 3500) -> st
         used_chars += len(part)
 
     context = "\n".join(context_parts)
+    print(f"[OK] Context built with {len(context)} characters.")
     return context
 
 
 def _call_ollama(messages: List[Dict[str, str]], model_name: str) -> str:
-    """Call local Ollama chat API and return model text."""
-    host = os.getenv("OLLAMA_HOST", "http://localhost:11434")
+    """Call local Ollama API and return model text with endpoint fallbacks."""
+    host = os.getenv("OLLAMA_HOST", "http://localhost:11434").rstrip("/")
+    print(f"[INFO] Using Ollama host: {host}")
     print(f"[INFO] Calling Ollama model: {model_name}")
 
+    # Try native Ollama chat endpoint first.
     response = requests.post(
         f"{host}/api/chat",
         json={"model": model_name, "messages": messages, "stream": False},
         timeout=120,
     )
-    response.raise_for_status()
-    payload = response.json()
+    if response.ok:
+        payload = response.json()
+        content = payload.get("message", {}).get("content", "")
+        if content:
+            print("[OK] Received response from Ollama (/api/chat).")
+            return content
 
-    content = payload.get("message", {}).get("content", "")
-    if not content:
-        raise ValueError("Ollama returned an empty response.")
-    print("[OK] Received response from Ollama.")
-    return content
+    # Fallback for OpenAI-compatible endpoints exposed by some local runtimes.
+    response_v1 = requests.post(
+        f"{host}/v1/chat/completions",
+        json={"model": model_name, "messages": messages, "temperature": 0.2},
+        timeout=120,
+    )
+    if response_v1.ok:
+        payload_v1 = response_v1.json()
+        content_v1 = payload_v1.get("choices", [{}])[0].get("message", {}).get("content", "")
+        if content_v1:
+            print("[OK] Received response from local OpenAI-compatible endpoint (/v1/chat/completions).")
+            return content_v1
+
+    # Final fallback to Ollama generate endpoint.
+    prompt = "\n\n".join(f"{m['role'].upper()}: {m['content']}" for m in messages)
+    response_generate = requests.post(
+        f"{host}/api/generate",
+        json={"model": model_name, "prompt": prompt, "stream": False},
+        timeout=120,
+    )
+    if response_generate.ok:
+        payload_generate = response_generate.json()
+        content_generate = payload_generate.get("response", "")
+        if content_generate:
+            print("[OK] Received response from Ollama (/api/generate).")
+            return content_generate
+
+    raise ValueError(
+        "Could not get a response from local LLM endpoint. Checked /api/chat, /v1/chat/completions, and /api/generate. "
+        "Verify OLLAMA_HOST, ensure Ollama is running, and confirm the model is available with: ollama list"
+    )
 
 
 def _call_openai(messages: List[Dict[str, str]], model_name: str) -> str:
@@ -64,6 +98,7 @@ def _call_openai(messages: List[Dict[str, str]], model_name: str) -> str:
     openai_module = importlib.import_module("openai")
     client = openai_module.OpenAI(api_key=api_key)
 
+    print("[INFO] Using OpenAI provider (cloud API).")
     print(f"[INFO] Calling OpenAI model: {model_name}")
     response = client.chat.completions.create(
         model=model_name,
@@ -122,6 +157,7 @@ def query_llm_with_chroma_rag(
     ]
 
     selected_provider = llm_provider.lower().strip()
+    print(f"[INFO] Selected LLM provider: {selected_provider}")
     if selected_provider == "ollama":
         answer = _call_ollama(messages=messages, model_name=llm_model_name)
     elif selected_provider == "openai":

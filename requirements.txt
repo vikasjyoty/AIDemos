@@ -1,3 +1,5 @@
 sentence-transformers
 chromadb
 openai
+requests
+pypdf

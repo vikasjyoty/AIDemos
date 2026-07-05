@@ -10,3 +10,11 @@ env/
 
 # Optional local config variants
 *.local
+
+# Python cache artifacts
+__pycache__/
+*.pyc
+
+# Local RAG runtime artifacts
+RAG-Demo/chroma_db/
+RAG-Demo/Results/

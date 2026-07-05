@@ -58,9 +58,12 @@ def ingest_chunks_to_chroma(
 
 def _get_collection(persist_path: Path, collection_name: str):
     """Small helper used by both insert and retrieval."""
+    print(f"[INFO] Opening Chroma collection '{collection_name}' at {persist_path}")
     persist_path.mkdir(parents=True, exist_ok=True)
     client = chromadb.PersistentClient(path=str(persist_path))
-    return client.get_or_create_collection(name=collection_name)
+    collection = client.get_or_create_collection(name=collection_name)
+    print("[OK] Chroma collection is ready.")
+    return collection
 
 
 def retrieve_relevant_chunks(

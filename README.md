@@ -33,6 +33,7 @@ Main files:
 
 4. `RAG-Demo/Main.py`
 	- CLI interface for asking questions
+	- Lets you choose provider and model at runtime
 
 ## Prerequisites
 
@@ -102,7 +103,28 @@ python .\LoadDocs.py
 python .\Main.py
 ```
 
+At startup, the CLI explains the options and asks you to choose:
+
+1. Local Ollama provider
+	- Free/local inference
+	- No OpenAI API key required
+	- Uses your selected local model (default shown in prompt)
+
+2. OpenAI provider
+	- Cloud model access
+	- Requires `OPENAI_API_KEY`
+	- Uses model you enter (default shown in prompt)
+
 Type your question in terminal. Type `exit` to quit.
+
+## Runtime Status Output
+
+The scripts print step-by-step progress messages so you can see exactly what is happening:
+
+1. File loading and parsing status
+2. Sentence split and chunk counts
+3. Embedding and Chroma upsert/retrieval status
+4. Provider/model selection and LLM response status
 
 ## Optional: OpenAI Instead of Ollama
 
@@ -132,3 +154,15 @@ $env:OPENAI_API_KEY="your_key_here"
 3. Connection error to Ollama
 	- Ensure Ollama is installed and running
 	- Verify local API endpoint is reachable at `http://localhost:11434`
+
+4. OpenAI call fails with missing API key
+	- Set key first in PowerShell:
+	- `$env:OPENAI_API_KEY="your_key_here"`
+
+## Commit Hygiene
+
+Generated runtime files are ignored to keep commits clean:
+
+1. `RAG-Demo/chroma_db/`
+2. `RAG-Demo/Results/`
+3. `__pycache__/` and `*.pyc`

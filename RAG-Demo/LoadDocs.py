@@ -16,31 +16,39 @@ CHUNK_SIZE = 256
 
 def _split_sentences(text: str) -> List[str]:
 	"""Simple sentence split for demo use."""
+	print("[INFO] Splitting text into sentences...")
 	cleaned = re.sub(r"\s+", " ", text).strip()
 	if not cleaned:
+		print("[INFO] No text found after cleanup.")
 		return []
 	sentences = [segment.strip() for segment in re.split(r"(?<=[.!?])\s+", cleaned) if segment.strip()]
+	print(f"[OK] Sentence count: {len(sentences)}")
 	return sentences
 
 
 def _read_text_file(file_path: Path) -> str:
 	"""Read a text file in UTF-8 and skip invalid bytes for simple demos."""
+	print(f"[INFO] Reading text file: {file_path.name}")
 	text = file_path.read_text(encoding="utf-8", errors="ignore")
+	print(f"[OK] Read {len(text)} characters from {file_path.name}")
 	return text
 
 
 def _read_pdf_file(file_path: Path) -> str:
 	"""Extract text from a PDF file using pypdf."""
+	print(f"[INFO] Reading PDF file: {file_path.name}")
 	try:
 		pypdf_module = importlib.import_module("pypdf")
 	except ImportError as exc:
 		raise ImportError("pypdf is required for PDF files. Install with: pip install pypdf") from exc
 
 	reader = pypdf_module.PdfReader(str(file_path))
+	print(f"[INFO] PDF page count: {len(reader.pages)}")
 	pages: List[str] = []
 	for page in reader.pages:
 		pages.append(page.extract_text() or "")
 	text = "\n".join(pages)
+	print(f"[OK] Extracted {len(text)} characters from {file_path.name}")
 	return text
 
 
@@ -58,6 +66,7 @@ def _chunk_text(text: str, tokenizer: object, chunk_size: int = CHUNK_SIZE) -> L
 	"""
 	if chunk_size <= 0:
 		raise ValueError("chunk_size must be > 0")
+	print(f"[INFO] Chunking text with chunk size: {chunk_size}")
 
 	sentences = _split_sentences(text)
 	chunks: List[str] = []
@@ -78,6 +87,7 @@ def _chunk_text(text: str, tokenizer: object, chunk_size: int = CHUNK_SIZE) -> L
 		chunks.append(" ".join(current_sentences).strip())
 
 	result_chunks = [chunk for chunk in chunks if chunk]
+	print(f"[OK] Chunk count generated: {len(result_chunks)}")
 	return result_chunks
 
 
