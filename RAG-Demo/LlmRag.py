@@ -1,0 +1,132 @@
+from __future__ import annotations
+
+import importlib
+import os
+import requests
+from pathlib import Path
+from typing import Dict, List, Tuple
+
+from ChromaDbOps import retrieve_relevant_chunks
+
+DEFAULT_LLM_PROVIDER = "ollama"
+DEFAULT_OLLAMA_MODEL = "qwen2.5:7b-instruct"
+DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
+
+
+def _build_context(chunks: List[Dict[str, object]], max_chars: int = 3500) -> str:
+    """Join retrieved chunks into one context block for the LLM prompt."""
+    context_parts: List[str] = []
+    used_chars = 0
+
+    for item in chunks:
+        text = str(item.get("text", "")).strip()
+        if not text:
+            continue
+
+        source = str(item.get("metadata", {}).get("filename", "unknown"))
+        part = f"[Source: {source}]\n{text}\n"
+        if used_chars + len(part) > max_chars:
+            break
+
+        context_parts.append(part)
+        used_chars += len(part)
+
+    context = "\n".join(context_parts)
+    return context
+
+
+def _call_ollama(messages: List[Dict[str, str]], model_name: str) -> str:
+    """Call local Ollama chat API and return model text."""
+    host = os.getenv("OLLAMA_HOST", "http://localhost:11434")
+    print(f"[INFO] Calling Ollama model: {model_name}")
+
+    response = requests.post(
+        f"{host}/api/chat",
+        json={"model": model_name, "messages": messages, "stream": False},
+        timeout=120,
+    )
+    response.raise_for_status()
+    payload = response.json()
+
+    content = payload.get("message", {}).get("content", "")
+    if not content:
+        raise ValueError("Ollama returned an empty response.")
+    print("[OK] Received response from Ollama.")
+    return content
+
+
+def _call_openai(messages: List[Dict[str, str]], model_name: str) -> str:
+    """Call OpenAI chat completion API and return model text."""
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        raise ValueError("OPENAI_API_KEY is not set in environment variables.")
+
+    openai_module = importlib.import_module("openai")
+    client = openai_module.OpenAI(api_key=api_key)
+
+    print(f"[INFO] Calling OpenAI model: {model_name}")
+    response = client.chat.completions.create(
+        model=model_name,
+        messages=messages,
+        temperature=0.2,
+    )
+
+    content = response.choices[0].message.content or ""
+    if not content:
+        raise ValueError("OpenAI returned an empty response.")
+    print("[OK] Received response from OpenAI.")
+    return content
+
+
+def query_llm_with_chroma_rag(
+    user_question: str,
+    persist_directory: str | Path = "chroma_db",
+    collection_name: str = "rag_docs",
+    embedding_model_name: str = "sentence-transformers/all-MiniLM-L6-v2",
+    llm_model_name: str = DEFAULT_OLLAMA_MODEL,
+    top_k: int = 4,
+    llm_provider: str = DEFAULT_LLM_PROVIDER,
+) -> Tuple[str, List[Dict[str, object]]]:
+    """Retrieve from Chroma and ask an LLM (Ollama or OpenAI) with that context."""
+    print("[INFO] Starting RAG query...")
+    if not user_question.strip():
+        print("[INFO] Empty question received.")
+        return "Please ask a non-empty question.", []
+
+    chunks = retrieve_relevant_chunks(
+        query_text=user_question,
+        persist_directory=persist_directory,
+        collection_name=collection_name,
+        model_name=embedding_model_name,
+        top_k=top_k,
+    )
+    print(f"[OK] Retrieved chunks for prompt: {len(chunks)}")
+
+    context = _build_context(chunks)
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "You are a helpful RAG assistant. Use provided context first. "
+                "If not enough context, clearly say what is missing."
+            ),
+        },
+        {
+            "role": "user",
+            "content": (
+                f"Question:\n{user_question}\n\n"
+                f"Retrieved Context:\n{context if context else 'No context found.'}\n\n"
+                "Answer briefly and mention source file names where possible."
+            ),
+        },
+    ]
+
+    selected_provider = llm_provider.lower().strip()
+    if selected_provider == "ollama":
+        answer = _call_ollama(messages=messages, model_name=llm_model_name)
+    elif selected_provider == "openai":
+        answer = _call_openai(messages=messages, model_name=llm_model_name)
+    else:
+        raise ValueError("Unsupported llm_provider. Use 'ollama' or 'openai'.")
+
+    return answer, chunks
