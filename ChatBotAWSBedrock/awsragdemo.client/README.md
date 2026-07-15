@@ -1,75 +1,68 @@
-# React + TypeScript + Vite
+# Bedrock Chat Console UI
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This project is a React + TypeScript UI for chatting with your LLM API (for example, an AWS endpoint).
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- Light themed, professional chat interface
+- Top navigation with branding and logo
+- Dummy login screen before entering chat home
+- Chat history with user/assistant message cards
+- Browser speech-to-text (microphone input)
+- Browser text-to-speech (read assistant replies)
+- Voice activity animation while mic or TTS is active
+- Basic error handling for login, speech, and API requests
 
-## React Compiler
+## App Configuration
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Update API and login settings in:
 
-## Expanding the ESLint configuration
+- `src/config.ts`
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+Fields:
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+- `appConfig.api.endpoint` - your API URL
+- `appConfig.api.apiKey` - optional bearer/API key
+- `appConfig.auth.username` - dummy login username
+- `appConfig.auth.password` - dummy login password
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+## Run Locally
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+From `awsragdemo.client`:
 
-```
+1. `npm install`
+2. `npm run dev`
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Then open the local URL shown by Vite.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Login (Dummy)
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+Use the credentials defined in `src/config.ts`.
 
-```
+Default values:
+
+- Username: `demo`
+- Password: `demo123`
+
+## Expected API Request/Response
+
+The UI sends:
+
+- `POST` to configured endpoint
+- JSON body:
+  - `message: string`
+  - `history: { role, content }[]`
+
+The UI reads assistant text from response fields in this order:
+
+1. `reply`
+2. `message`
+3. `output`
+
+If none exist, a fallback message is shown.
+
+## Browser Notes
+
+- Speech-to-text uses browser Speech Recognition APIs.
+- Text-to-speech uses `speechSynthesis`.
+- For mic input, allow microphone permission when prompted.
