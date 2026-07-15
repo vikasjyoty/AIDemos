@@ -38,6 +38,26 @@ type BrowserSpeechRecognitionConstructor = new () => BrowserSpeechRecognition;
 
 const authStorageKey = 'aws-rag-demo-authenticated';
 
+interface IconProps {
+    name: 'login' | 'logout' | 'send' | 'mic' | 'speaker';
+}
+
+function Icon({ name }: IconProps) {
+    const paths: Record<IconProps['name'], string> = {
+        login: 'M10 2a8 8 0 1 0 8 8h-2a6 6 0 1 1-6-6V2Zm2.3 4.3 1.4-1.4L18.8 10l-5.1 5.1-1.4-1.4 2.7-2.7H8v-2h7l-2.7-2.7Z',
+        logout: 'M10 2a8 8 0 1 1 0 16V16a6 6 0 1 0 0-12V2Zm3.7 4.3L12.3 7.7 15 10H8v2h7l-2.7 2.3 1.4 1.4 5.1-5.1-5.1-5.1Z',
+        send: 'M2 10 18 3l-4.4 14-3.6-4.1-4.1-3.6L2 10Zm5.4-.6 2.9 2.5 2.2-6.9-5.1 4.4Z',
+        mic: 'M10 13a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v4a3 3 0 0 0 3 3Zm-5-3a5 5 0 1 0 10 0h2a7 7 0 0 1-6 6.9V20H9v-3.1A7 7 0 0 1 3 10h2Z',
+        speaker: 'M3 8h3.5L11 4v12l-4.5-4H3V8Zm11.4-3.4 1.4-1.4A9 9 0 0 1 19 10a9 9 0 0 1-3.2 6.8l-1.4-1.4A7 7 0 0 0 17 10a7 7 0 0 0-2.6-5.4Zm-2.8 2.8L13 6a5 5 0 0 1 0 8l-1.4-1.4a3 3 0 0 0 0-5.2Z',
+    };
+
+    return (
+        <svg className="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+            <path d={paths[name]} />
+        </svg>
+    );
+}
+
 function App() {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [username, setUsername] = useState('');
@@ -49,6 +69,7 @@ function App() {
     const [isSending, setIsSending] = useState(false);
     const [error, setError] = useState('');
     const [isListening, setIsListening] = useState(false);
+    const [isSpeaking, setIsSpeaking] = useState(false);
 
     const speechRecognitionRef = useRef<BrowserSpeechRecognition | null>(null);
 
@@ -87,12 +108,18 @@ function App() {
         <div className="app-shell">
             <nav className="top-nav">
                 <div className="brand-block">
-                    <h1 className="brand-title">{appConfig.appTitle}</h1>
+                    <div className="brand-row">
+                        <img className="brand-logo" src="/favicon.svg" alt="App logo" />
+                        <h1 className="brand-title">{appConfig.appTitle}</h1>
+                    </div>
                     <p className="brand-subtitle">AWS LLM Chat Assistant</p>
                 </div>
                 <div className="nav-actions">
                     {isAuthenticated ? (
-                        <button type="button" onClick={handleLogout}>Logout</button>
+                        <button type="button" onClick={handleLogout}>
+                            <Icon name="logout" />
+                            Logout
+                        </button>
                     ) : (
                         <span className="nav-badge">Please sign in</span>
                     )}
@@ -102,6 +129,7 @@ function App() {
             <main className="content-area">
                 {!isAuthenticated ? (
                     <section className="login-panel" aria-label="Dummy login">
+                        <img className="login-logo" src="/favicon.svg" alt="Bedrock Chat logo" />
                         <h2>Welcome</h2>
                         <p className="panel-description">Use the demo credentials to continue.</p>
 
@@ -130,7 +158,10 @@ function App() {
                                 />
                             </label>
 
-                            <button type="submit">Sign In</button>
+                            <button type="submit">
+                                <Icon name="login" />
+                                Sign In
+                            </button>
                         </form>
 
                         <p className="login-hint">
@@ -183,19 +214,23 @@ function App() {
 
                             <div className="composer-actions">
                                 <button type="submit" disabled={isSending || !input.trim()}>
+                                    <Icon name="send" />
                                     {isSending ? 'Sending...' : 'Send'}
                                 </button>
 
                                 <button
                                     type="button"
+                                    className={isListening ? 'is-active listening' : ''}
                                     disabled={!speechToTextSupported || isSending}
                                     onClick={toggleSpeechToText}
                                 >
+                                    <Icon name="mic" />
                                     {isListening ? 'Stop Mic' : 'Use Mic'}
                                 </button>
 
                                 <button
                                     type="button"
+                                    className={isSpeaking ? 'is-active speaking' : ''}
                                     disabled={!textToSpeechSupported || latestAssistantMessage === undefined}
                                     onClick={() => {
                                         if (latestAssistantMessage) {
@@ -203,9 +238,35 @@ function App() {
                                         }
                                     }}
                                 >
+                                    <Icon name="speaker" />
                                     Read Latest Reply
                                 </button>
                             </div>
+
+                            {(isListening || isSpeaking) && (
+                                <div className="voice-status" aria-live="polite">
+                                    {isListening && (
+                                        <div className="status-chip listening">
+                                            <span className="bars" aria-hidden="true">
+                                                <span />
+                                                <span />
+                                                <span />
+                                            </span>
+                                            Mic is active...
+                                        </div>
+                                    )}
+                                    {isSpeaking && (
+                                        <div className="status-chip speaking">
+                                            <span className="bars" aria-hidden="true">
+                                                <span />
+                                                <span />
+                                                <span />
+                                            </span>
+                                            Voice playback is active...
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </form>
                     </section>
                 )}
@@ -239,6 +300,12 @@ function App() {
         setMessages([]);
         setInput('');
         setError('');
+        setIsListening(false);
+        setIsSpeaking(false);
+        speechRecognitionRef.current?.stop();
+        if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+            window.speechSynthesis.cancel();
+        }
     }
 
     function addMessage(role: ChatMessage['role'], content: string) {
@@ -370,9 +437,20 @@ function App() {
             return;
         }
 
+        setIsSpeaking(false);
         window.speechSynthesis.cancel();
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = 'en-US';
+        utterance.onstart = () => {
+            setIsSpeaking(true);
+        };
+        utterance.onend = () => {
+            setIsSpeaking(false);
+        };
+        utterance.onerror = () => {
+            setIsSpeaking(false);
+            setError('Text-to-speech playback failed in this browser.');
+        };
         window.speechSynthesis.speak(utterance);
     }
 }
