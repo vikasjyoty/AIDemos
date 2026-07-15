@@ -1,0 +1,1 @@
+C:\Users\vikas\source\repos\AIDemos\ChatBotAWSBedrock\awsragdemo.client\obj\Debug\awsragdemo.client.esproj.CoreCompileInputs.cache

@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="awsragdemo.client/awsragdemo.client.esproj">
+    <Build />
+    <Deploy />
+  </Project>
+  <Project Path="AWSRAGDemo.Server/AWSRAGDemo.Server.csproj" />
+</Solution>
