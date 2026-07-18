@@ -17,7 +17,6 @@ __pycache__/
 
 # Local RAG runtime artifacts
 RAG-Demo/chroma_db/
-RAG-Demo/Results/
 /.vs/CopilotSnapshots/A8225F27565A6F4FA23D67B0F23768B2
 /ChatBotAWSBedrock/.vs/AWSRAGDemo/CopilotIndices/18.7.1253.33689
 /ChatBotAWSBedrock/.vs/AWSRAGDemo.slnx
