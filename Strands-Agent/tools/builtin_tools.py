@@ -1,3 +1,5 @@
+"""Built-in tools sourced from strands-agents-tools."""
+
 from strands_tools.calculator import calculator
 from strands_tools.current_time import current_time
 

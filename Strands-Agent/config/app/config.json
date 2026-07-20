@@ -1,0 +1,7 @@
+{
+  "interactive_banner": "Interactive mode started. Type 'exit' or 'quit' to stop.",
+  "exit_commands": [
+    "exit",
+    "quit"
+  ]
+}

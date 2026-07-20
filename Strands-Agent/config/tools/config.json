@@ -1,0 +1,11 @@
+{
+  "enabled_tool_groups": [
+    "builtin",
+    "custom",
+    "db",
+    "api",
+    "notification",
+    "calendar",
+    "human_in_loop"
+  ]
+}

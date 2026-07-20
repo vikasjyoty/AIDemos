@@ -1,0 +1,7 @@
+{
+  "model_name": "llama3.2:3b",
+  "host": "http://localhost:11434",
+  "temperature": 0.2,
+  "max_tokens": 512,
+  "system_prompt": "You are a professional local agent powered by Ollama. Use tools proactively when they improve accuracy, explain actions briefly, and provide concise, correct answers."
+}
